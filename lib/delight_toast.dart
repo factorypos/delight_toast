@@ -29,7 +29,7 @@ class DelightToastBar {
   final Curve? animationCurve;
 
   /// Info on each snackbar
-  late final SnackBarInfo info;
+  final SnackBarInfo info;
 
   /// Initialise Delight Toastbar with required parameters
   DelightToastBar(
@@ -38,12 +38,14 @@ class DelightToastBar {
       required this.builder,
       this.animationDuration = const Duration(milliseconds: 700),
       this.autoDismiss = false,
-      this.animationCurve})
-      : assert(
-            snackbarDuration.inMilliseconds > animationDuration.inMilliseconds);
+      this.animationCurve,
+      SnackBarInfo? toastInfo})
+      : info = toastInfo ?? DelightToastBar.generateInfo(),
+        assert(snackbarDuration.inMilliseconds > animationDuration.inMilliseconds);
 
-  /// Remove individual toasbars on dismiss
+  /// Remove individual toastbars on dismiss
   void remove() {
+    info.onRemove?.call();
     info.entry.remove();
     _toastBars.removeWhere((element) => element == this);
   }
@@ -51,10 +53,7 @@ class DelightToastBar {
   /// Push the snackbar in current context
   void show(BuildContext context) {
     OverlayState overlayState = Navigator.of(context).overlay!;
-    info = SnackBarInfo(
-      key: GlobalKey<RawDelightToastState>(),
-      createdAt: DateTime.now(),
-    );
+
     info.entry = OverlayEntry(
       builder: (_) => RawDelightToast(
         key: info.key,
@@ -70,10 +69,13 @@ class DelightToastBar {
       ),
     );
 
-    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-      _toastBars.add(this);
-      overlayState.insert(info.entry);
-    });
+    _toastBars.add(this);
+    overlayState.insert(info.entry);
+  }
+
+  // * Static helpers
+  static SnackBarInfo generateInfo() {
+    return SnackBarInfo(key: GlobalKey<RawDelightToastState>(), createdAt: DateTime.now());
   }
 
   /// Remove all the snackbar in the context
@@ -83,6 +85,30 @@ class DelightToastBar {
     }
     _toastBars.removeWhere((element) => true);
   }
+
+  /// Remove the latest toast on top of the snackbar stack
+  static void removeLast() {
+    _toastBars.last.info.entry.remove();
+    _toastBars.removeLast();
+  }
+
+  /// Remove the oldest toast on the bottom of the snackbar stack
+  static void removeFirst() {
+    _toastBars.first.info.entry.remove();
+    _toastBars.first.remove();
+  }
+
+  /// Remove toast with the given key
+  /// key comes from `SnackBarInfo.key`
+  static void removeWithKey(GlobalKey<RawDelightToastState> key) {
+    for (int i = 0; i < _toastBars.length; i++) {
+      if (_toastBars[i].info.key == key) {
+        _toastBars[i].info.entry.remove();
+        _toastBars.removeAt(i);
+        break;
+      }
+    }
+  }
 }
 
 /// Snackbar info class
@@ -90,17 +116,15 @@ class SnackBarInfo {
   late final OverlayEntry entry;
   final GlobalKey<RawDelightToastState> key;
   final DateTime createdAt;
+  final Function? onRemove;
 
-  SnackBarInfo({required this.key, required this.createdAt});
+  SnackBarInfo({required this.key, required this.createdAt, this.onRemove});
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
 
-    return other is SnackBarInfo &&
-        other.entry == entry &&
-        other.key == key &&
-        other.createdAt == createdAt;
+    return other is SnackBarInfo && other.entry == entry && other.key == key && other.createdAt == createdAt;
   }
 
   @override
