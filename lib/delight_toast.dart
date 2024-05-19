@@ -109,16 +109,27 @@ class DelightToastBar {
       }
     }
   }
+
+  static void removeWithMessageClass(String messageClass) {
+    for (int i = 0; i < _toastBars.length; i++) {
+      if (_toastBars[i].info.messageClass == messageClass) {
+        _toastBars[i].info.entry.remove();
+        _toastBars.removeAt(i);
+        break;
+      }
+    }
+  }
 }
 
 /// Snackbar info class
 class SnackBarInfo {
   late final OverlayEntry entry;
   final GlobalKey<RawDelightToastState> key;
+  final String? messageClass;
   final DateTime createdAt;
   final Function? onRemove;
 
-  SnackBarInfo({required this.key, required this.createdAt, this.onRemove});
+  SnackBarInfo({required this.key, this.messageClass, required this.createdAt, this.onRemove});
 
   @override
   bool operator ==(Object other) {
